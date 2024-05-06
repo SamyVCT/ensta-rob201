@@ -42,12 +42,76 @@ class MyRobotSlam(RobotAbstract):
 
         # storage for pose after localization
         self.corrected_pose = np.array([0, 0, 0])
+    
+    def transform_list(self):
+        return [[x[0], x[1]] for x in self.planner.path]
 
     def control(self):
         """
         Main control function executed at each time step
         """
-        return self.control_tp1()
+
+        """ PLANIFICATION DE TRAJECTOIRE"""
+        counter_planif = 600
+        self.counter+=1
+        goal = [-500, 130, 0]#[30,500,0]#
+        pose = self.odometer_values()
+        if self.counter==1:
+            print("Initialisation of the map")
+            self.tiny_slam.update_map(self.lidar(), self.odometer_values())
+       
+        score = self.tiny_slam.localise(self.lidar(), self.odometer_values())
+        if score > 1000:
+            # print("score",score)
+            self.corrected_pose = self.tiny_slam.get_corrected_pose(self.odometer_values())
+            self.tiny_slam.update_map(self.lidar(), self.corrected_pose)
+            if self.counter < counter_planif:
+                self.tiny_slam.grid.display_cv(pose, goal, traj=None)
+            
+        if self.counter < counter_planif:
+            command = potential_field_control(self.lidar(), np.array(self.corrected_pose), goal)
+            return command
+        else :
+            if self.counter == counter_planif:
+                start = self.tiny_slam.get_corrected_pose(self.odometer_values())
+                start_map = (start[0], start[1])#self.tiny_slam.grid.conv_world_to_map(start[0], start[1])
+                goal_map = (0,0)#self.tiny_slam.grid.conv_world_to_map(0, 0)
+                self.planner.path = self.planner.plan(start_map, goal_map)
+                self.planner.path = np.array(self.transform_list()[::-1])
+                # print("départ, arrivée, trajectoire planifiée :", start_map, goal_map,self.planner.path)
+                command = {"forward": 0,  "rotation": 0}
+
+            else:
+                if len(self.planner.path) == 0:
+                    print("The robot has arrived.")
+                    command = {"forward": 0, "rotation": 0}
+                else:
+                    tempgoal=self.planner.path[0]
+                    # print("tempgoal",tempgoal)
+                    command = potential_field_control(self.lidar(), np.array(self.corrected_pose), [tempgoal[0], tempgoal[1], 0])
+                    # print(self.planner.path,pose)
+                    self.tiny_slam.grid.display_cv(self.corrected_pose,[0,0,0], self.planner.path)
+                if self.counter % 3 == 0:
+                    if len(self.planner.path) != 0:
+                        self.planner.path = self.planner.path[1:]
+       
+        
+        return command
+
+        """ SANS PLANIFICATION DE TRAJECTOIRE"""
+        # self.counter+=1
+        # goal = [-400, 120, 0]
+        # if self.counter==1:
+        #     print("Initialisation of the map")
+        #     self.tiny_slam.update_map(self.lidar(), self.odometer_values())
+            
+        # if self.counter !=0 :
+        #     score = self.tiny_slam.localise(self.lidar(), self.odometer_values())
+        #     if score > 1000  and self.counter != 0 :#- 5*self.counter:
+        #         print("score",score)
+        #         self.corrected_pose = self.tiny_slam.get_corrected_pose(self.odometer_values())
+        #         self.tiny_slam.update_map(self.lidar(), self.corrected_pose)
+        # return potential_field_control(self.lidar(), np.array(self.corrected_pose), np.array(goal))
 
     def control_tp1(self):
         """
@@ -63,10 +127,9 @@ class MyRobotSlam(RobotAbstract):
         """
         Control function for TP2
         """
-        pose = self.odometer_values()
-        goal = [0,0,0]
-
+        pose = self.tiny_slam.get_corrected_pose(self.odometer_values())
+        goal = [-100,00,0]
         # Compute new command speed to perform obstacle avoidance
-        command = potential_field_control(self.lidar(), pose, goal)
+        command = potential_field_control(self.lidar(), np.array(pose), np.array(goal))
 
         return command

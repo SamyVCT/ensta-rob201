@@ -1,0 +1,8 @@
+launch anaconda prompt for python 3.8
+python tp_rob201/main.py
+
+
+activation de l'environnement dans cmd : env\Scripts\activate.bat
+puis deactivate
+
+

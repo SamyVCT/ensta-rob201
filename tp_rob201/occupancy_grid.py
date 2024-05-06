@@ -163,11 +163,18 @@ class OccupancyGrid:
         img = np.uint8(img)
         img2 = cv2.applyColorMap(src=img, colormap=cv2.COLORMAP_JET)
 
+        # if traj is None:
+        #     print("traj is None")
+
         if traj is not None:
-            traj_map_x, traj_map_y = self.conv_world_to_map(traj[0, :], -traj[1, :])
+            # print("traj", traj.shape, traj )
+            traj_map_x, traj_map_y = self.conv_world_to_map(traj[:,0], -traj[:,1])
             traj_map = np.vstack((traj_map_x, traj_map_y))
+            # print("traj_map", traj_map.shape, traj_map, traj_map[:, 0], traj_map[:, 1])
             for i in range(len(traj_map_x) - 1):
-                cv2.line(img2, traj_map[:, i], traj_map[:, i + 1], (180, 180, 180), 2)
+                # print("traj_map", (traj_map[0, i]), (traj_map[1, i ]))
+                cv2.line(img2, tuple(traj_map[:, i]), tuple(traj_map[:, i + 1]), (255, 255, 255), 4)
+
 
         if goal is not None:
             pt_x, pt_y = self.conv_world_to_map(goal[0], -goal[1])
